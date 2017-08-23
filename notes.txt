@@ -1,0 +1,24 @@
+For those of you who got it working, is the following understanding correct to build layers?
+* layer 7 output: should be converted to 1x1 fully convolutional layer, let’s call it fc7_1x1
+* upsample fc7_1x1 to be the same shape as layer 4 output
+* combine layer 4 output with upsampled fc7_1x1, let’s call the result combined_output1
+* upsample combined_output1 to be the same shape as layer 3 output, let’s call the result upsampled_combined_output1
+* combine layer 3 output with upsampled_combined_output1
+
+I think you are missing a couple of steps, as I understand it we should actually be applying 1x1 convolutions to each of the 3 layers (layer 7 output, layer 4 output, and layer 3 output). So after upsampling to get the `upsampled fc7_1x1` as you have called it, you should be adding that layer to something like `fc4_1x1`. Then of course that should be upsampled and combined with `fc3_1x1`.
+
+
+```correct_label = tf.placeholder(tf.float32, [None, image_shape[0], image_shape[1], num_classes])```
+I believe you could even do it like:
+```correct_label = tf.placeholder(tf.float32, shape = [None, None, None, num_classes])```
+
+The final step is to define a loss. That way, we can approach training a FCN just like we would approach training a normal classification CNN.
+
+In the case of a FCN, the goal is to assign each pixel to the appropriate class. We already happen to know a great loss function for this setup, cross entropy loss! Remember the output tensor is 4D so we have to reshape it to 2D:
+
+...
+logits = tf.reshape(input, (-1, num_classes))
+logits is now a 2D tensor where each row represents a pixel and each column a class. From here when just use standard cross entropy loss:
+
+cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, labels))
+That’s it, we now have an end-to-end model for semantic segmentation. Time to get training!
